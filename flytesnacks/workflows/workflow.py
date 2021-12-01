@@ -1,18 +1,22 @@
+import logging
 from typing import Tuple
 
 from flytekit import task, workflow
 
 
+logging.getLogger().setLevel(logging.INFO)
+
+
 @task
 def prepare_data() -> str:
     """Download a dataset, validate it, and return blob storage uri."""
-
+    logging.info("Data prepared")
     return "uri"
 
 @task
 def train_model(data_uri: str) -> Tuple[str, str]:
     """
-    Train model on prepared data at `data_uri`.
+    Train and evaluate model on prepared data at `data_uri`.
 
     Args:
         data_uri (str): uri of prepared data in blob storage.
@@ -21,7 +25,7 @@ def train_model(data_uri: str) -> Tuple[str, str]:
         run_id (str): the id of the Mlflow run
         artifact_uri (str): the blob storage uri of the model artifact
     """
-    
+    logging.info("Model trained and evaluated")
     return "run_id", "artifact_uri"
 
 
@@ -35,9 +39,8 @@ def deploy_model(run_id: str, model_uri: str) -> str:
     Returns:
         endpoint_uri (str): the path of the deployed model endpoint.
     """
-    
+    logging.info("Model deployed and tested")
     return "endpoint_uri"
-    
 
 
 @workflow
@@ -50,4 +53,4 @@ def pipeline() -> str:
 
 
 if __name__ == "__main__":
-    pipeline()
+    logging.info(pipeline())
