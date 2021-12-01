@@ -36,7 +36,7 @@ spec:
           repo: <fill in>
           revision: HEAD
     script:
-      image: golang:1.10
+      image: bitnami/git:2.34.1
       command: [sh]
       source: |
         git show -s --format=%h
@@ -72,8 +72,8 @@ spec:
       image: k3d-registry.localhost:5000/workflow:{{inputs.parameters.image-tag}}
       command: [bash]
       source: |
-        pyflyte --pkgs iris_pipeline.workflows package --image k3d-registry.localhost:5000/workflow:{{inputs.parameters.image-tag}} -f
+        pyflyte --pkgs flytesnacks.workflows package --image k3d-registry.localhost:5000/workflow:{{inputs.parameters.image-tag}} -f
         flytectl register files --project flytesnacks --domain development --archive flyte-package.tgz --version {{inputs.parameters.image-tag}} --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
-        flytectl get launchplan --project flytesnacks --domain development iris_pipeline.workflows.iris.train_and_deploy_iris_model --latest --execFile exec_spec.yaml --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
+        flytectl get launchplan --project flytesnacks --domain development flytesnacks.workflows.workflow.pipeline --latest --execFile exec_spec.yaml --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
         flytectl create execution --project flytesnacks --domain development --execFile exec_spec.yaml --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
       workingDir: /src      
