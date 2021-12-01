@@ -1,0 +1,10 @@
+flytekit>=0.20.0
+awscli
+boto3
+mlflow
+minio
+sklearn
+pandas
+matplotlib
+kubernetes
+ruamel.yaml
