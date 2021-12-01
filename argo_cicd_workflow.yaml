@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: register-flyte-pipeline-
+spec:
+  entrypoint: pipeline
+  templates:
+  - name: pipeline
+    steps:
+    - - name: clone-repo
+        template: git-clone
+    - - name: build-image
+        arguments:
+          artifacts:
+            - name: home-dir
+              from: "{{steps.clone-repo.outputs.artifacts.home}}"
+          parameters:
+            - name: git-hash
+              value: "{{steps.clone-repo.outputs.result}}"
+        template: kaniko-builder
+    - - name: register-and-run
+        arguments:
+          artifacts:
+            - name: home-dir
+              from: "{{steps.clone-repo.outputs.artifacts.home}}"
+          parameters:
+            - name: image-tag
+              value: "{{steps.clone-repo.outputs.result}}"
+        template: register-and-run
+  - name: git-clone
+    inputs:
+      artifacts:
+      - name: argo-source
+        path: /src
+        git:
+          repo: <fill in>
+          revision: HEAD
+    script:
+      image: golang:1.10
+      command: [sh]
+      source: |
+        git show -s --format=%h
+      workingDir: /src
+    outputs:
+      artifacts:
+        - name: home
+          path: /src
+  - name: kaniko-builder
+    inputs:
+      artifacts:
+      - name: home-dir
+        path: /src
+      parameters:
+      - name: git-hash
+    container:
+      image: gcr.io/kaniko-project/executor:v1.6.0
+      command: [/kaniko/executor]
+      args:
+        - --dockerfile=/src/Dockerfile
+        - --destination=k3d-registry.localhost:5000/workflow:{{inputs.parameters.git-hash}}
+        - --context=/src
+        - --cache=true
+      workingDir: /src
+  - name: register-and-run
+    inputs:
+      artifacts:  
+      - name: home-dir
+        path: /src
+      parameters:
+      - name: image-tag
+    script:
+      image: k3d-registry.localhost:5000/workflow:{{inputs.parameters.image-tag}}
+      command: [bash]
+      source: |
+        pyflyte --pkgs iris_pipeline.workflows package --image k3d-registry.localhost:5000/workflow:{{inputs.parameters.image-tag}} -f
+        flytectl register files --project flytesnacks --domain development --archive flyte-package.tgz --version {{inputs.parameters.image-tag}} --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
+        flytectl get launchplan --project flytesnacks --domain development iris_pipeline.workflows.iris.train_and_deploy_iris_model --latest --execFile exec_spec.yaml --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
+        flytectl create execution --project flytesnacks --domain development --execFile exec_spec.yaml --admin.endpoint flyteadmin.flyte.svc.cluster.local:81 --admin.insecure
+      workingDir: /src      
