@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flyte
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: flyte
+spec:
+  externalName: minio
+  ports:
+  - name: minio-api
+    port: 9000
+  - name: minio-console
+    port: 9001
+  selector:
+    app: minio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: minio
+  name: minio-direct
+  namespace: flyte
+spec:
+  ports:
+  - nodePort: 30084
+    port: 9000
+    protocol: TCP
+  selector:
+    app: minio
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: flyte
+spec:
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - env:
+        - name: MINIO_ACCESS_KEY
+          value: minio
+        - name: MINIO_SECRET_KEY
+          value: miniostorage
+        image: minio/minio:latest
+        command: ["minio"]
+        args: ["server", "/data"]
+        name: minio
+        ports:
+        - containerPort: 9000
+          name: minio
+        - containerPort: 9001
+          name: minio-console
+        volumeMounts:
+        - mountPath: /data
+          name: minio-storage
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: OnRootMismatch
+        runAsUser: 1001
+      volumes:
+      - emptyDir: {}
+        name: minio-storage
